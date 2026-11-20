@@ -336,6 +336,8 @@ By default, files go to `/public_html/projects/beach-water-quality/`. To change 
 
 To check it works: open the Actions tab, choose "Weekly beach data refresh", click "Run workflow", and watch each step turn green. If a dbt test fails, the run stops before the upload, so the website keeps last week's good data.
 
+**Failure alerts.** If any step fails, the last step opens a GitHub issue titled "Weekly beach refresh failed", labeled `refresh-failure` and assigned to the repository admin. GitHub then emails the assignee. If the issue is already open, later failures add a comment instead of opening duplicates. Close it once the cause is fixed. To test it, click "Run workflow" and tick "Fail on purpose to test the failure alert".
+
 ---
 
 ## Beach locations (one-time helper)
