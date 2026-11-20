@@ -1,0 +1,9 @@
+version: 2
+models:
+  - name: int_readings_resolved
+    description: Readings mapped to a canonical beach_id, keeping DPNR's latest PDF per sampling date.
+    columns:
+      - name: reading_id
+        tests: [unique, not_null]
+      - name: beach_id
+        tests: [not_null]

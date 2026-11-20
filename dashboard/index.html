@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USVI Beach Water Quality Tracker · Crucian Data Works</title>
+<meta name="description" content="Four years of DPNR weekly beach bacteria results for the U.S. Virgin Islands, collected from public PDFs, modeled in dbt and DuckDB, and mapped. A Crucian Data Works portfolio project.">
+<link rel="icon" href="cdw-icon-app-tile.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="demo-bar" role="note">
+  <span class="pill">Portfolio project 01</span>
+  <span>Built from public DPNR data. Not an official advisory. Always check <a href="https://dpnr.vi.gov/" target="_blank" rel="noopener">dpnr.vi.gov</a> before swimming.</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="title">
+      <p class="eyebrow">U.S. Virgin Islands · Weekly enterococci testing</p>
+      <h1>Is the water safe this week?</h1>
+      <p class="sub">DPNR beach results <span id="range"></span></p>
+    </div>
+    <div class="controls" aria-label="Filters">
+      <div class="seg" role="radiogroup" aria-label="Island" id="islandSeg">
+        <button role="radio" data-i="All" aria-checked="true">All islands</button>
+        <button role="radio" data-i="St. Croix" aria-checked="false">St. Croix</button>
+        <button role="radio" data-i="St. Thomas" aria-checked="false">St. Thomas</button>
+        <button role="radio" data-i="St. John" aria-checked="false">St. John</button>
+        <button role="radio" data-i="Water Island" aria-checked="false">Water Island</button>
+      </div>
+      <p class="applied" id="applied">Showing all 45 monitored beaches</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="kpis" aria-label="Key metrics" id="kpis"></section>
+
+  <section class="grid map-row">
+    <article class="card">
+      <header class="card-h row">
+        <div><h2>Latest results by beach</h2><p id="mapSub">Week of the latest DPNR sheet</p></div>
+        <div class="legend" aria-label="Map legend">
+          <span class="tag warn"><i class="dot unsafe"></i>Unsafe &gt;70</span>
+          <span class="tag good"><i class="dot safe"></i>Safe</span>
+          <span class="tag plain"><i class="dot none"></i>Not sampled</span>
+        </div>
+      </header>
+      <div id="map" role="region" aria-label="Map of monitored beaches colored by latest result"></div>
+      <p class="fine-inline">Select a beach on the map or in the table to see its full history.</p>
+    </article>
+    <article class="card">
+      <header class="card-h"><h2>Unsafe this week</h2><p id="weekSub"></p></header>
+      <ul class="unsafe-list" id="unsafeList"></ul>
+      <a class="src" id="weekPdf" target="_blank" rel="noopener">Open DPNR source sheet</a>
+    </article>
+  </section>
+
+  <section class="grid two">
+    <article class="card">
+      <header class="card-h"><h2>Unsafe results per week</h2><p>Beaches above 70 colonies per 100 mL</p></header>
+      <div class="chart"><canvas id="cWeekly" aria-label="Number of unsafe beach results per sampling week, by island"></canvas></div>
+    </article>
+    <article class="card">
+      <header class="card-h row">
+        <div><h2 id="beachTitle">Beach history</h2><p id="beachSub">Enterococci per 100 mL, log scale</p></div>
+        <label class="pick">Beach <select id="beachPick" aria-label="Choose a beach"></select></label>
+      </header>
+      <div class="chart"><canvas id="cBeach" aria-label="Enterococci results over time for the selected beach"></canvas></div>
+      <p class="bench" id="beachNote"></p>
+    </article>
+  </section>
+
+  <section class="grid two-uneven">
+    <article class="card">
+      <header class="card-h row">
+        <div><h2>Beach track record</h2><p>Oct 2022 to latest · sampled weeks only</p></div>
+      </header>
+      <div class="table-wrap">
+        <table class="tbl" id="tBeach">
+          <thead><tr>
+            <th data-k="beach_name">Beach</th>
+            <th class="n" data-k="samples">Samples</th>
+            <th class="n" data-k="exceedances">Unsafe</th>
+            <th class="n" data-k="exceedance_rate_pct" aria-sort="descending">Unsafe rate</th>
+            <th class="n" data-k="max_enterococci">Highest</th>
+            <th data-k="latest_enterococci">Latest</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="fine-inline">Rates from fewer than 20 samples are marked "few samples". Values like &lt;10 are below the lab's reporting limit.</p>
+    </article>
+    <article class="card">
+      <header class="card-h"><h2>Longest unsafe streaks</h2><p>Consecutive sampled weeks above 70</p></header>
+      <ol class="streaks" id="streaks"></ol>
+    </article>
+  </section>
+
+  <section class="card how" id="how">
+    <div>
+      <p class="eyebrow">How this was built</p>
+      <h2>123 PDFs to one tested table</h2>
+      <p>DPNR posts each week's results as a PDF. A Python pipeline finds every sheet through the agency's public media feed, downloads it once, and reads the table by character position. dbt models in DuckDB clean the codes, merge 56 printed name spellings into 45 beaches, and run 30 tests. One test checks our results against DPNR's own press release.</p>
+      <p class="finding"><b>Found along the way:</b> five sheets carried the previous week's date, a few values had typing slips like "1..57", and the Nov 13, 2026 press release left Sprat Hall off its list even though its sheet shows a safe result.</p>
+    </div>
+    <ol>
+      <li><b>1</b>Discover sheets via WordPress REST API</li>
+      <li><b>2</b>Download with caching and SHA-256 fingerprints</li>
+      <li><b>3</b>Extract rows with PyMuPDF character positions</li>
+      <li><b>4</b>Load raw text into DuckDB</li>
+      <li><b>5</b>Model and test with dbt (staging, intermediate, marts)</li>
+      <li><b>6</b>Export JSON for this page, refreshed weekly</li>
+    </ol>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <div class="brand">
+      <img src="cdw-icon-reverse.svg" alt="" width="36" height="36">
+      <div><b>Crucian Data Works</b><span>Data engineering from St. Croix</span></div>
+    </div>
+    <div class="contact">Roger Simon · <a href="mailto:hello@cruciandataworks.com">hello@cruciandataworks.com</a></div>
+  </div>
+  <p class="wrap fine">Data: weekly Beach Data sheets and Beach Advisory releases from the <a href="https://dpnr.vi.gov/" target="_blank" rel="noopener">USVI Department of Planning and Natural Resources</a>. Unsafe means more than 70 enterococci colonies per 100 mL, the standard printed on each DPNR sheet. Beach locations from OpenStreetMap (© OpenStreetMap contributors, ODbL); ten points are approximate. Map tiles © OpenStreetMap. This page is an independent analysis and is not an official health advisory. <span id="built"></span></p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

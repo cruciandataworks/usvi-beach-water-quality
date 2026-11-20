@@ -1,0 +1,46 @@
+beach_id,latitude,longitude,geocode_source,osm_match
+stony_ground,17.69371,-64.87877,OpenStreetMap Nominatim,"Stony Ground, Whites Bay, Saint Croix District, United States Virgin Islands, 00"
+dorsch_beach,17.703,-64.881,manual_approximate,
+frederiksted_beach,17.7178,-64.8841,OpenStreetMap Nominatim (Frederiksted Beach),Frederiksted Beach
+prosperity_beach,17.7255,-64.8875,manual_approximate,
+rainbow_beach,17.73291,-64.88933,OpenStreetMap Nominatim,"Rainbow Beach, William, Saint Croix District, United States Virgin Islands, Unit"
+sprat_hall,17.74311,-64.89024,OpenStreetMap Nominatim,"Sprat Hall, Saint Croix District, United States Virgin Islands, 00870, United St"
+davis_bay,17.7715,-64.837,manual_approximate,
+cane_bay,17.77152,-64.81002,OpenStreetMap Nominatim,"Cane Bay, Saint Croix District, United States Virgin Islands, 00851, United Stat"
+gentle_winds,17.77828,-64.76655,OpenStreetMap Nominatim,"Gentle Winds Drive, Salt River, Saint Croix District, United States Virgin Islan"
+columbus_landing,17.7805,-64.7605,manual_approximate,
+pelican_cove,17.76581,-64.73514,OpenStreetMap Nominatim,"Pelican Cove Beach, Sion Farm, Saint Croix District, United States Virgin Island"
+princess_condo_row,17.75224,-64.71968,OpenStreetMap Nominatim,"Club Saint Croix Access Road, Golden Rock, Little Princess South, Saint Croix Di"
+protestant_cay,17.74964,-64.70278,OpenStreetMap Nominatim,"Protestant Cay, Peter's Farm, Saint Croix District, United States Virgin Islands"
+new_fort,17.756,-64.692,manual_approximate,
+buccaneer_beach,17.75581,-64.68375,OpenStreetMap Nominatim,"Buccaneer Beach, Shoys, Saint Croix District, United States Virgin Islands, 0082"
+shoys_beach,17.75988,-64.67192,OpenStreetMap Nominatim,"Shoy's Beach, Shoys Beach Road, Testman, Shoys, Saint Croix District, United Sta"
+chenay_bay,17.76164,-64.66014,OpenStreetMap Nominatim,"Chenay Bay, Green Kay, Saint Croix District, United States Virgin Islands, 00820"
+teague_bay,17.759,-64.605,manual_approximate,
+cramers_park,17.75845,-64.5858,OpenStreetMap Nominatim,"Cramer's Park, South Grapetree Bay, Saint Croix District, United States Virgin I"
+grapetree_bay,17.74867,-64.59868,OpenStreetMap Nominatim,"Castle St. Croix, Terrace Road, Grapetree Bay, South Slob, Christiansted, Saint "
+hapenny_beach,17.706,-64.697,manual_approximate,
+lindbergh_bay,18.3345,-64.963,manual_approximate,
+brewers_bay,18.34329,-64.98014,OpenStreetMap Nominatim,"John Brewers Bay, Charlotte Amalie West, Bonne Esperance, Saint Thomas - Saint J"
+hull_bay,18.37023,-64.95459,OpenStreetMap Nominatim,"Hull Bay, Ensomned, Lindbergh Bay, Hull, Saint Thomas - Saint John District, Uni"
+magens_bay,18.37079,-64.9357,OpenStreetMap Nominatim,"Magens Bay, Lindbergh Bay, Lerkenlund, Saint Thomas - Saint John District, Unite"
+coki_point,18.34616,-64.86795,OpenStreetMap Nominatim,"Margaritaville Vacation Club by Wyndham - St. Thomas, 6080, Point Pleasant Way, "
+water_bay,18.34745,-64.86375,OpenStreetMap Nominatim,"Water Bay, Coki Point, Charlotte Amalie, Smith Bay, Saint Thomas - Saint John Di"
+lindqvist_beach,18.3375,-64.853,manual_approximate,
+sapphire_beach,18.3335,-64.85,manual_approximate,
+vessup_bay,18.32523,-64.85014,OpenStreetMap Nominatim,"Vessup Bay, Charlotte Amalie, Red Hook, Saint Thomas - Saint John District, Unit"
+bluebeards_beach,18.31988,-64.84279,OpenStreetMap Nominatim,"The Ritz-Carlton, Saint Thomas, Bluebeards Beach Road, Charlotte Amalie, Red Hoo"
+secret_harbor,18.31801,-64.85292,OpenStreetMap Nominatim,"Secret Harbor Beach, Benner, Charlotte Amalie, Nazareth, Saint Thomas - Saint Jo"
+bolongo_bay,18.31162,-64.8957,OpenStreetMap Nominatim,"Bolongo Bay, Bolongo, Saint Thomas - Saint John District, United States Virgin I"
+limetree_beach,18.3169,-64.9132,OpenStreetMap Nominatim,"Limetree Beach, Bakkero, Frenchman's Bay, Saint Thomas - Saint John District, Un"
+frenchmans_bay,18.33258,-64.92277,OpenStreetMap Nominatim,"St Thomas Cruise Port, Elmo D. Roebuck Senior Drive, Havensight, Charlotte Amali"
+morningstar,18.31997,-64.9194,OpenStreetMap Nominatim,"Morningstar Beach, Bakkero, Estate Thomas, Saint Thomas - Saint John District, U"
+honeymoon_beach,18.31705,-64.95616,OpenStreetMap Nominatim,"Honeymoon Beach, Western Water Island, Charlotte Amalie West, Saint Thomas - Sai"
+cruz_bay,18.3356,-64.75504,OpenStreetMap Nominatim,"Saint John, Cruz Bay, Saint Thomas - Saint John District, United States Virgin I"
+oppenheimer,18.35301,-64.77653,OpenStreetMap Nominatim,"Oppenheimer Beach, Cruz Bay, Saint Thomas - Saint John District, United States V"
+johnson_bay,18.33415,-64.70369,OpenStreetMap Nominatim,"Johnson Bay, Coral Bay, Saint Thomas - Saint John District, United States Virgin"
+klein_bay,18.3194,-64.76875,OpenStreetMap Nominatim,"Klein Bay, Cruz Bay, Saint Thomas - Saint John District, United States Virgin Is"
+hart_bay,18.31523,-64.7793,OpenStreetMap Nominatim,"Hart Bay, Cruz Bay, Saint Thomas - Saint John District, United States Virgin Isl"
+chocolate_hole,18.31579,-64.78486,OpenStreetMap Nominatim,"Chocolate Hole, Cruz Bay, Saint Thomas - Saint John District, United States Virg"
+great_cruz_bay,18.32079,-64.78958,OpenStreetMap Nominatim,"Great Cruz Bay, Cruz Bay, Saint Thomas - Saint John District, United States Virg"
+frank_bay,18.32829,-64.79903,OpenStreetMap Nominatim,"Frank Bay, Charlotte Amalie, Cruz Bay, Saint Thomas - Saint John District, Unite"

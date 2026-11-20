@@ -1,0 +1,31 @@
+version: 2
+models:
+  - name: dim_beach
+    description: One row per beach with island and map coordinates.
+    columns:
+      - name: beach_id
+        tests: [unique, not_null]
+      - name: island
+        tests:
+          - accepted_values:
+              arguments: {values: ['St. Croix', 'St. Thomas', 'St. John', 'Water Island']}
+      - name: latitude
+        tests: [not_null]
+  - name: fct_beach_samples
+    description: One row per beach, station and sampling date, with the >70 colonies/100 mL safety flag.
+    columns:
+      - name: reading_id
+        tests: [unique, not_null]
+      - name: beach_id
+        tests:
+          - relationships:
+              arguments: {to: ref('dim_beach'), field: beach_id}
+  - name: mart_beach_summary
+    description: Per-beach history - samples, unsafe results, rate, latest result.
+    columns:
+      - name: beach_id
+        tests: [unique]
+  - name: mart_island_weekly
+    description: Per-island, per-week counts of beaches sampled and unsafe.
+  - name: mart_exceedance_streaks
+    description: Runs of consecutive unsafe samples at a beach.

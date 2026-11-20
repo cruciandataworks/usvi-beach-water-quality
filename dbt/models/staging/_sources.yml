@@ -1,0 +1,11 @@
+version: 2
+sources:
+  - name: raw
+    description: Untouched copies of what step 4 loaded from the PDFs and the DPNR media feed.
+    tables:
+      - name: beach_readings
+        description: One row per beach row printed in a DPNR weekly Beach-Data PDF (all text).
+      - name: pdf_manifest
+        description: Every Beach-Data PDF listed in DPNR's WordPress media library.
+      - name: pdf_downloads
+      - name: extract_log

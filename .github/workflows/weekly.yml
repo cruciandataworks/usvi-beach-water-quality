@@ -1,0 +1,43 @@
+# Runs the whole pipeline every Saturday morning (DPNR usually posts on Friday),
+# then commits the refreshed dashboard data back to the repository.
+name: Weekly beach data refresh
+
+on:
+  schedule:
+    - cron: "0 13 * * 6"   # 13:00 UTC = 9:00 AM in St. Croix (AST, UTC-4)
+  workflow_dispatch: {}     # adds a "Run workflow" button for manual runs
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Cache downloaded PDFs between runs so only the new week's sheet is fetched
+      - uses: actions/cache@v4
+        with:
+          path: data/raw/pdfs
+          key: dpnr-pdfs-${{ github.run_id }}
+          restore-keys: dpnr-pdfs-
+
+      - name: Run pipeline (discover, download, extract, load, dbt build, export)
+        run: python run_pipeline.py
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "cdw-bot"
+          git config user.email "hello@cruciandataworks.com"
+          git add data/raw/manifest.csv data/raw/downloads.csv data/interim dashboard/data
+          git diff --cached --quiet || git commit -m "Weekly DPNR beach data refresh"
+          git push

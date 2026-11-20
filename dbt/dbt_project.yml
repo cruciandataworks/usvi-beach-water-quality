@@ -1,0 +1,32 @@
+name: usvi_beaches
+version: "1.0.0"
+config-version: 2
+profile: usvi_beaches
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+models:
+  usvi_beaches:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  usvi_beaches:
+    +schema: reference
+    beach_locations:
+      +config:
+        column_types: {latitude: double, longitude: double}
+
+vars:
+  # EPA/DPNR beach action value: more than 70 enterococci colonies per 100 mL = unsafe
+  exceedance_threshold: 70

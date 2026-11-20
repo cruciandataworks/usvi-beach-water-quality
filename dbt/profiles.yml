@@ -1,0 +1,7 @@
+usvi_beaches:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../warehouse/beach.duckdb
+      threads: 4

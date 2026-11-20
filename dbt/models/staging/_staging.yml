@@ -1,0 +1,26 @@
+version: 2
+models:
+  - name: stg_beach_readings
+    description: Typed and decoded beach readings, one row per beach row per PDF.
+    columns:
+      - name: sample_date
+        tests: [not_null]
+      - name: beach_name_raw
+        tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('beach_aliases'), field: beach_name_raw}
+      - name: sample_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [sampled, not_sampled, not_monitored, sampling_issue, not_validated, missing]
+      - name: enterococci_per_100ml
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 100000}
+      - name: turbidity_ntu
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 200}
+              config: {severity: warn}
