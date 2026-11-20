@@ -324,6 +324,18 @@ Once the project is on GitHub, GitHub Actions runs `run_pipeline.py` every Satur
 
 The cron line `0 13 * * 6` means minute 0, hour 13 UTC, any day of the month, any month, Saturday (day 6).
 
+The last step uploads the `dashboard/` folder to your Hostinger site over FTP, so the published page updates on its own. It stays switched off until you add three repository secrets in GitHub (Settings > Secrets and variables > Actions > New repository secret):
+
+| Secret | Where to find it in Hostinger hPanel |
+|---|---|
+| `FTP_SERVER` | Files > FTP Accounts: the FTP IP or hostname |
+| `FTP_USERNAME` | Same page: the FTP username |
+| `FTP_PASSWORD` | The password for that FTP account |
+
+By default, files go to `/public_html/projects/beach-water-quality/`. To change that, add a repository variable (not a secret) named `FTP_SERVER_DIR`. Secrets are encrypted and hidden in the logs, so the password never appears in the code.
+
+To check it works: open the Actions tab, choose "Weekly beach data refresh", click "Run workflow", and watch each step turn green. If a dbt test fails, the run stops before the upload, so the website keeps last week's good data.
+
 ---
 
 ## Beach locations (one-time helper)

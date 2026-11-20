@@ -13,6 +13,8 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}   # empty until the secret exists
     steps:
       - uses: actions/checkout@v4
 
@@ -41,3 +43,16 @@ jobs:
           git add data/raw/manifest.csv data/raw/downloads.csv data/interim dashboard/data
           git diff --cached --quiet || git commit -m "Weekly DPNR beach data refresh"
           git push
+
+      # Publish the refreshed dashboard to cruciandataworks.com (Hostinger) over FTP.
+      # Skipped automatically until the three FTP secrets are added in
+      # GitHub: Settings > Secrets and variables > Actions.
+      - name: Upload dashboard to Hostinger
+        if: ${{ env.FTP_SERVER != '' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dashboard/
+          server-dir: ${{ vars.FTP_SERVER_DIR || '/public_html/projects/beach-water-quality/' }}
