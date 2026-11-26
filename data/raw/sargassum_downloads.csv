@@ -569,3 +569,4 @@ report_date,url,sha256,bytes,usvi_points,status,fetched_at_utc
 20261122,https://cwcgom.aoml.noaa.gov/SIR/KMZ/sargassum_risk_20261122.kmz,a09ad0ebd9f3ae5c2c3ef6b12e8b041441a9fb84e44f3a25593f83551d080663,1552765,2087,saved,2026-11-26T14:00
 20261123,https://cwcgom.aoml.noaa.gov/SIR/KMZ/sargassum_risk_20261123.kmz,b37503e4b4d4acc478e9c1707b690d9091ee03509b1d7a3481f47cee751e67ef,1553703,2087,saved,2026-11-26T14:00
 20261124,https://cwcgom.aoml.noaa.gov/SIR/KMZ/sargassum_risk_20261124.kmz,0b51db1e29fe22187cf237b8e44e73feba550f69f32eb991ea57a75e20534ed0,1558568,2087,saved,2026-11-26T14:00
+20261125,https://cwcgom.aoml.noaa.gov/SIR/KMZ/sargassum_risk_20261125.kmz,3e76203f743c0c8fa2b1a12680dfd5d179b66c7816aed3a0133728e1b1fafd08,1555888,2087,saved,2026-11-26T23:57
