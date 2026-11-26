@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>USVI Beach Water Quality Tracker · Crucian Data Works</title>
-<meta name="description" content="Four years of DPNR weekly beach bacteria results for the U.S. Virgin Islands, collected from public PDFs, modeled in dbt and DuckDB, and mapped. A Crucian Data Works portfolio project.">
+<meta name="description" content="Four years of DPNR weekly beach bacteria results for the U.S. Virgin Islands, plus NOAA's daily sargassum risk for every beach, collected from public files, modeled in dbt and DuckDB, and mapped. A Crucian Data Works portfolio project.">
 <link rel="icon" href="cdw-icon-app-tile.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://api.fontshare.com">
 <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
@@ -97,6 +97,53 @@ a.brand{color:inherit;text-decoration:none}
     </article>
   </section>
 
+  <section class="sarg" id="sargassum" aria-labelledby="sargH">
+    <div class="sarg-head">
+      <div>
+        <p class="eyebrow dark">NOAA satellite product · experimental</p>
+        <h2 id="sargH">Sargassum risk along the coast</h2>
+        <p class="muted-d" id="sargSub">Daily Sargassum Inundation Risk from NOAA CoastWatch</p>
+      </div>
+      <div class="legend" aria-label="Sargassum legend">
+        <span class="tag plain"><i class="lv l0"></i>Low</span>
+        <span class="tag plain"><i class="lv l1"></i>Warning</span>
+        <span class="tag plain"><i class="lv l2"></i>Medium</span>
+        <span class="tag plain"><i class="lv l3"></i>High</span>
+        <span class="tag plain"><i class="lv ln"></i>No data</span>
+      </div>
+    </div>
+    <div class="grid map-row">
+      <article class="card">
+        <header class="card-h"><h2>Daily risk level by island</h2><p>The level covering most of each island's scored coastline, one stripe per NOAA report day</p></header>
+        <div class="isl-strips" id="sargRows" role="img" aria-label="Daily sargassum risk level for each island"></div>
+        <div class="strip-axis" id="sargRowsAxis"></div>
+        <h3 class="sub-h">Days at medium or high risk, by month</h3>
+        <div class="chart short"><canvas id="cSarg" aria-label="Share of report days at medium or high sargassum risk each month, by island"></canvas></div>
+      </article>
+      <article class="card">
+        <header class="card-h"><h2>Latest NOAA level</h2><p id="sargLatestSub"></p></header>
+        <ul class="sarg-islands" id="sargIslands"></ul>
+        <p class="caveat"><b>Read with care.</b> NOAA labels this product experimental and says it is not a forecast. Each coastline point is scored from satellite-detected floating algae within 50 to 100 km of the coast, compared with a multi-day baseline, so it signals sargassum heading toward a coast, not what is on the sand today.</p>
+      </article>
+    </div>
+    <div class="grid two">
+      <article class="card">
+        <header class="card-h"><h2>Sargassum level vs unsafe bacteria</h2><p id="vsSub">Share of DPNR samples above 70, by the highest NOAA level near the beach in the 7 days before</p></header>
+        <div class="chart"><canvas id="cVs" aria-label="Unsafe sample rate by nearby sargassum risk level"></canvas></div>
+        <p class="fine-inline" id="vsNote"></p>
+      </article>
+      <article class="card">
+        <header class="card-h row">
+          <div><h2 id="sargBeachTitle">Sargassum near this beach</h2><p id="sargBeachSub">NOAA level at the nearby coastline, one stripe per day</p></div>
+        </header>
+        <div class="strip" id="sargStrip" role="img" aria-label="Daily sargassum risk near the selected beach"></div>
+        <div class="strip-axis" id="sargAxis"></div>
+        <p class="bench" id="sargBeachNote"></p>
+        <p class="fine-inline">"Nearby" means NOAA coastline points within 2 km of the beach on the same island. Change the beach with the picker in Beach history or by selecting it on the map.</p>
+      </article>
+    </div>
+  </section>
+
   <section class="grid two-uneven">
     <article class="card">
       <header class="card-h row">
@@ -126,17 +173,18 @@ a.brand{color:inherit;text-decoration:none}
   <section class="card how" id="how">
     <div>
       <p class="eyebrow">How this was built</p>
-      <h2>123 PDFs to one tested table</h2>
-      <p>DPNR posts each week's results as a PDF. A Python pipeline finds every sheet through the agency's public media feed, downloads it once, and reads the table by character position. dbt models in DuckDB clean the codes, merge 56 printed name spellings into 45 beaches, and run 30 tests. One test checks our results against DPNR's own press release.</p>
+      <h2>124 PDFs and 509 satellite maps to one tested warehouse</h2>
+      <p>DPNR posts each week's results as a PDF. A Python pipeline finds every sheet through the agency's public media feed, downloads it once, and reads the table by character position. dbt models in DuckDB clean the codes, merge 56 printed name spellings into 45 beaches, and run 40 tests. One test checks our results against DPNR's own press release. A second feed adds NOAA's daily sargassum risk map: the pipeline keeps the 2,087 coastline points it scores around the territory and links each beach to the points within 2 km.</p>
       <p class="finding"><b>Found along the way:</b> five sheets carried the previous week's date, a few values had typing slips like "1..57", and the Nov 13, 2026 press release left Sprat Hall off its list even though its sheet shows a safe result.</p>
     </div>
     <ol>
       <li><b>1</b>Discover sheets via WordPress REST API</li>
       <li><b>2</b>Download with caching and SHA-256 fingerprints</li>
+      <li><b>2b</b>Fetch NOAA's daily sargassum risk files and keep USVI points</li>
       <li><b>3</b>Extract rows with PyMuPDF character positions</li>
       <li><b>4</b>Load raw text into DuckDB</li>
       <li><b>5</b>Model and test with dbt (staging, intermediate, marts)</li>
-      <li><b>6</b>Export JSON for this page, refreshed weekly</li>
+      <li><b>6</b>Export JSON for this page, refreshed daily</li>
     </ol>
   </section>
 </main>
@@ -149,7 +197,7 @@ a.brand{color:inherit;text-decoration:none}
     </a>
     <div class="contact">Roger Simon · <a href="mailto:hello@cruciandataworks.com">hello@cruciandataworks.com</a></div>
   </div>
-  <p class="wrap fine">Data: weekly Beach Data sheets and Beach Advisory releases from the <a href="https://dpnr.vi.gov/" target="_blank" rel="noopener">USVI Department of Planning and Natural Resources</a>. Unsafe means more than 70 enterococci colonies per 100 mL, the standard printed on each DPNR sheet. Beach locations from OpenStreetMap (© OpenStreetMap contributors, ODbL); ten points are approximate. Map tiles © OpenStreetMap. This page is an independent analysis and is not an official health advisory. <span id="built"></span></p>
+  <p class="wrap fine">Data: weekly Beach Data sheets and Beach Advisory releases from the <a href="https://dpnr.vi.gov/" target="_blank" rel="noopener">USVI Department of Planning and Natural Resources</a>. Unsafe means more than 70 enterococci colonies per 100 mL, the standard printed on each DPNR sheet. Sargassum risk: <a href="https://cwcgom.aoml.noaa.gov/SIR/index.php" target="_blank" rel="noopener">Daily Sargassum Inundation Risk</a> from the NOAA CoastWatch Caribbean &amp; Gulf of America node, built on satellite data from the University of South Florida Optical Oceanography Lab; experimental, not a forecast. Beach locations from OpenStreetMap (© OpenStreetMap contributors, ODbL); ten points are approximate. Map tiles © OpenStreetMap. This page is an independent analysis and is not an official health advisory. <span id="built"></span></p>
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>

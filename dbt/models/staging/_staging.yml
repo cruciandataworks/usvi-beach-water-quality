@@ -24,3 +24,43 @@ models:
           - dbt_expect_between:
               arguments: {min_value: 0, max_value: 200}
               config: {severity: warn}
+  - name: stg_sargassum_points
+    description: NOAA SIR coastline points around the USVI, one row per point.
+    columns:
+      - name: point_id
+        tests: [unique, not_null]
+      - name: island
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: ['St. Croix', 'St. Thomas', 'St. John', 'Water Island']}
+      - name: latitude
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 17.6, max_value: 18.45}
+  - name: stg_sargassum_daily
+    description: NOAA SIR risk level per coastline point per report day.
+    tests:
+      - unique_combination:
+          arguments: {columns: [report_date, point_id]}
+    columns:
+      - name: report_date
+        tests: [not_null]
+      - name: risk_level
+        tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [0, 1, 2, 3], quote: false}
+      - name: point_id
+        tests:
+          - relationships:
+              arguments: {to: ref('stg_sargassum_points'), field: point_id}
+  - name: stg_sargassum_downloads
+    description: Audit trail of SIR files fetched from NOAA.
+    columns:
+      - name: report_date
+        tests: [unique, not_null]
+      - name: status
+        tests:
+          - accepted_values:
+              arguments: {values: [saved, missing]}

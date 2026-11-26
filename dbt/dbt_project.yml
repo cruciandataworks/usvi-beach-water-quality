@@ -30,3 +30,7 @@ seeds:
 vars:
   # EPA/DPNR beach action value: more than 70 enterococci colonies per 100 mL = unsafe
   exceedance_threshold: 70
+  # Sargassum (step 2b): NOAA coastline points within this many km of a beach count as "nearby"
+  sargassum_radius_km: 2
+  # How many days before a sample (including the sampling day) we look for a sargassum warning
+  sargassum_lookback_days: 7

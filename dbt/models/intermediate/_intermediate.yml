@@ -7,3 +7,8 @@ models:
         tests: [unique, not_null]
       - name: beach_id
         tests: [not_null]
+  - name: int_beach_sargassum_points
+    description: NOAA SIR coastline points within the sargassum radius of each beach (same island only).
+    tests:
+      - unique_combination:
+          arguments: {columns: [beach_id, point_id]}

@@ -9,3 +9,9 @@ sources:
         description: Every Beach-Data PDF listed in DPNR's WordPress media library.
       - name: pdf_downloads
       - name: extract_log
+      - name: sargassum_points
+        description: Every USVI coastline point in NOAA's Sargassum Inundation Risk (SIR) map, with its island.
+      - name: sargassum_daily
+        description: One row per SIR report day and coastline point, with NOAA's risk level 0-3 (all text).
+      - name: sargassum_downloads
+        description: Every SIR KMZ file the pipeline tried to fetch, with its checksum.

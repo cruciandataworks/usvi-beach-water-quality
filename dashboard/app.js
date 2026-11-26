@@ -3,6 +3,11 @@
   const C = { ink: '#0E2A3B', coral: '#C8553D', coralL: '#E8836B', sea: '#2F7F86', seaL: '#8CC2C4', grey: '#B9C2C8', line: '#E6DFD2', muted: '#6B7C89' };
   const ISLAND_COLORS = { 'St. Croix': '#C8553D', 'St. Thomas': '#0E2A3B', 'St. John': '#2F7F86', 'Water Island': '#D9A441' };
   const load = (f) => fetch(`data/${f}.json`).then((r) => r.json());
+  // sargassum.json is optional: if it is missing, the rest of the page still works
+  const sarg = await fetch('data/sargassum.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const LV = ['Low', 'Warning', 'Medium', 'High'];
+  const LV_COLORS = ['#8CC2C4', '#E3B23C', '#E07B39', '#B4432E'];
+  const NO_DATA = '#C9CFD3';
   const [beaches, samples, weekly, streaks, weeks, meta] = await Promise.all(
     ['beaches', 'samples', 'island_weekly', 'streaks', 'weeks', 'meta'].map(load));
 
@@ -60,7 +65,10 @@
       fillColor: st === 'unsafe' ? C.coral : st === 'safe' ? C.sea : C.grey, fillOpacity: 0.95,
     }).addTo(map);
     const val = st === 'none' ? 'Not sampled this week' : `${fmtVal(b.latest_enterococci, b.latest_qualifier)} per 100 mL`;
-    m.bindPopup(`<b>${b.beach_name}</b><br>${b.island}<br>${val}<br><button class="pop-btn" data-b="${b.beach_id}">View history</button>`);
+    const sb = sarg && sarg.beaches[b.beach_id];
+    const sv = sb && sb.latest != null
+      ? `<br><span class="pop-sarg"><i class="lv l${sb.latest}"></i>Sargassum risk: ${LV[sb.latest]} <small>(NOAA, ${fmtDate(sb.latest_date, { month: 'short', day: 'numeric' })})</small></span>` : '';
+    m.bindPopup(`<b>${b.beach_name}</b><br>${b.island}<br>${val}${sv}<br><button class="pop-btn" data-b="${b.beach_id}">View history</button>`);
     m.bindTooltip(b.beach_name, { direction: 'top', offset: [0, -6] });
     markers[b.beach_id] = m;
   });
@@ -168,6 +176,7 @@
       ? `<b>${b.exceedances} of ${b.samples}</b> samples unsafe (${rate}). Highest: ${fmtVal(b.max_enterococci)}${b.last_exceedance_date ? `. Last unsafe ${fmtDate(b.last_exceedance_date)}` : '. Never above 70'}.${b.samples < 20 ? ' Few samples, so read the rate with care.' : ''}`
       : 'No sampled results yet.';
     document.querySelectorAll('#tBeach tbody tr').forEach((tr) => tr.classList.toggle('sel', tr.dataset.b === id));
+    renderSargBeach(id);
     if (markers[id] && scroll !== 'quiet') markers[id].openTooltip();
     if (scroll === true) document.getElementById('cBeach').closest('.card').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -211,6 +220,106 @@
       : '<li><span class="n">0</span><div><b>No streaks of 3 or more</b><small>on this island</small></div></li>';
   }
 
+  /* ---------- Sargassum (NOAA SIR) ---------- */
+  const sargSection = document.getElementById('sargassum');
+  let sargChart = null, vsChart = null;
+  const shortDate = (d) => fmtDate(d, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!sarg) {
+    sargSection.hidden = true;
+  } else {
+    const sd = sarg.dates, sm = sarg.meta;
+    document.getElementById('sargSub').textContent =
+      `Daily Sargassum Inundation Risk from NOAA CoastWatch · ${sm.report_days} report days, ${shortDate(sm.first_date)} to ${shortDate(sm.last_date)}`;
+    // Monthly summary: what share of each month's report days had medium or high risk
+    // (judged by the level covering most of the island's coastline that day).
+    var months = [...new Set(sd.map((d) => d.slice(0, 7)))];
+    var monthPct = (i) => months.map((m) => {
+      const t = sarg.islands[i].typical.filter((v, k) => sd[k].startsWith(m) && v != null);
+      return t.length ? Math.round(100 * t.filter((v) => v >= 2).length / t.length) : null;
+    });
+    sargChart = new Chart(document.getElementById('cSarg'), {
+      type: 'bar',
+      data: { labels: months, datasets: [] },
+      options: {
+        maintainAspectRatio: false, animation: { duration: 300 },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+          tooltip: { callbacks: { title: (it) => fmtDate(it[0].label + '-15', { month: 'long', year: 'numeric' }), label: (it) => `${it.dataset.label}: ${it.raw == null ? 'no data' : it.raw + '% of days'}` } },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 9, callback: function (v) { return fmtDate(this.getLabelForValue(v) + '-15', { month: 'short', year: '2-digit' }); } } },
+          y: { min: 0, max: 100, grid: { color: '#EFE9DE' }, ticks: { stepSize: 25, callback: (v) => v + '%' } },
+        },
+      },
+    });
+    // weekly-ish smoothing is not applied: each point is one NOAA report day
+    vsChart = new Chart(document.getElementById('cVs'), {
+      type: 'bar',
+      data: { labels: [], datasets: [] },
+      options: {
+        maintainAspectRatio: false, animation: { duration: 300 },
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: (it) => { const r = it.dataset.rows[it.dataIndex]; return `${r.unsafe} of ${r.samples} samples unsafe (${r.unsafe_pct}%)`; } } } },
+        scales: { x: { grid: { display: false } },
+                  y: { beginAtZero: true, grid: { color: '#EFE9DE' }, ticks: { callback: (v) => v + '%' }, title: { display: true, text: 'Unsafe samples' } } },
+      },
+    });
+    const rows = sarg.vs_bacteria.slice().sort((a, b) => a.level - b.level);
+    const vsLabel = (l) => (l < 0 ? 'No data' : LV[l]);
+    vsChart.data.labels = rows.map((r) => [vsLabel(r.level), `n = ${r.samples}`]);
+    vsChart.data.datasets = [{ data: rows.map((r) => r.unsafe_pct), rows, borderRadius: 4, maxBarThickness: 46,
+      backgroundColor: rows.map((r) => (r.level < 0 ? NO_DATA : LV_COLORS[r.level])) }];
+    vsChart.update();
+    const all = rows.reduce((a, r) => ({ s: a.s + r.samples, u: a.u + r.unsafe }), { s: 0, u: 0 });
+    const small = rows.filter((r) => r.samples < 30).map((r) => vsLabel(r.level));
+    document.getElementById('vsNote').textContent =
+      `${all.s.toLocaleString()} samples since ${shortDate(sm.first_date)}, ${(100 * all.u / Math.max(all.s, 1)).toFixed(1)}% unsafe overall. ` +
+      (small.length ? `Fewer than 30 samples in: ${small.join(', ')}, so those bars are rough. ` : '') +
+      'This is a side-by-side comparison, not proof that sargassum causes high bacteria: rain runoff, sewage and season also move both.';
+  }
+  function renderSarg() {
+    if (!sarg) return;
+    const sd = sarg.dates, isl = sarg.islands;
+    const shown = Object.keys(ISLAND_COLORS).filter((i) => isl[i] && (island === 'All' || i === island));
+    const stripe = (c, i, name) => `<i style="background:${c == null ? NO_DATA : LV_COLORS[c]}" title="${name}, ${shortDate(sd[i])}: ${c == null ? 'no data' : LV[c]}"></i>`;
+    document.getElementById('sargRows').innerHTML = shown.map((i) =>
+      `<span>${i}</span><div class="strip">${isl[i].typical.map((c, k) => stripe(c, k, i)).join('')}</div>`).join('');
+    const marks = [0, Math.floor(sd.length / 2), sd.length - 1];
+    document.getElementById('sargRowsAxis').innerHTML = marks.map((k) => `<span>${fmtDate(sd[k], { month: 'short', year: 'numeric' })}</span>`).join('');
+    sargChart.data.datasets = shown.map((i) => ({
+      label: i, data: monthPct(i), backgroundColor: ISLAND_COLORS[i], borderRadius: 2, maxBarThickness: 12,
+    }));
+    sargChart.update();
+    const last = sd.length - 1;
+    document.getElementById('sargLatestSub').textContent = `NOAA report for ${shortDate(sd[last])}`;
+    const list = Object.keys(ISLAND_COLORS).filter((i) => isl[i] && (island === 'All' || i === island));
+    document.getElementById('sargIslands').innerHTML = list.map((i) => {
+      const x = isl[i], t = x.typical[last];
+      const lvl = t == null ? '<span class="lvl-chip none">No data</span>' : `<span class="lvl-chip l${t}">${LV[t]}</span>`;
+      const det = t == null ? 'NOAA had too little satellite data' : `${x.medium[last]}% medium or higher · ${x.warning[last]}% warning or higher`;
+      return `<li><div><b>${i}</b><small>${det}</small></div>${lvl}</li>`;
+    }).join('');
+  }
+  function renderSargBeach(id) {
+    if (!sarg) return;
+    const b = byId[id], x = sarg.beaches[id], sd = sarg.dates;
+    document.getElementById('sargBeachTitle').textContent = `Sargassum near ${b.beach_name}`;
+    const strip = document.getElementById('sargStrip');
+    if (!x || !x.points) {
+      strip.innerHTML = '';
+      document.getElementById('sargAxis').innerHTML = '';
+      document.getElementById('sargBeachNote').textContent = 'NOAA scores no coastline point within 2 km of this beach.';
+      return;
+    }
+    // one thin stripe per NOAA report day; gaps in the archive stay visible as grey
+    strip.innerHTML = [...x.strip].map((c, i) => `<i style="background:${c === '.' ? NO_DATA : LV_COLORS[+c]}" title="${shortDate(sd[i])}: ${c === '.' ? 'no data' : LV[+c]}"></i>`).join('');
+    const marks = [0, Math.floor(sd.length / 2), sd.length - 1];
+    document.getElementById('sargAxis').innerHTML = marks.map((i) => `<span>${fmtDate(sd[i], { month: 'short', year: 'numeric' })}</span>`).join('');
+    document.getElementById('sargBeachSub').textContent = `${x.points} NOAA coastline points within 2 km · nearest ${x.nearest_km.toFixed(1)} km`;
+    document.getElementById('sargBeachNote').innerHTML = x.latest == null ? 'No NOAA data for the nearby coastline yet.'
+      : `Latest (${shortDate(x.latest_date)}): <b>${LV[x.latest]}</b>. Medium or higher on <b>${x.days_med} of ${x.days}</b> report days (${Math.round(100 * x.days_med / Math.max(x.days, 1))}%), and ${x.days_med_30} of the last 30 days.`;
+  }
+
   /* ---------- Island filter ---------- */
   function populatePick() {
     const opts = beaches.filter(inIsland).slice().sort((a, b) => a.beach_name.localeCompare(b.beach_name));
@@ -221,7 +330,7 @@
     }
   }
   function renderAll() {
-    renderKpis(); renderWeek(); renderWeekly(); renderTable(); renderStreaks(); populatePick(); selectBeach(selected, 'quiet'); fitMap();
+    renderKpis(); renderWeek(); renderWeekly(); renderTable(); renderStreaks(); renderSarg(); populatePick(); selectBeach(selected, 'quiet'); fitMap();
   }
   document.querySelectorAll('#islandSeg button').forEach((btn) => btn.addEventListener('click', () => {
     island = btn.dataset.i;

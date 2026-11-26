@@ -20,6 +20,11 @@ TABLES = {
     "pdf_manifest": ROOT / "data" / "raw" / "manifest.csv",
     "pdf_downloads": ROOT / "data" / "raw" / "downloads.csv",
     "extract_log": ROOT / "data" / "interim" / "extract_log.csv",
+    # Step 2b: NOAA sargassum risk. The daily file is split by month, so we read a
+    # whole folder at once with a * wildcard.
+    "sargassum_points": ROOT / "data" / "interim" / "sargassum_points.csv",
+    "sargassum_daily": ROOT / "data" / "interim" / "sargassum" / "*.csv",
+    "sargassum_downloads": ROOT / "data" / "raw" / "sargassum_downloads.csv",
 }
 
 
@@ -28,6 +33,9 @@ def main():
     con = duckdb.connect(str(DB))
     con.execute("create schema if not exists raw")
     for table, path in TABLES.items():
+        if not list(path.parent.glob(path.name)):
+            print(f"raw.{table:16} skipped (no file yet)")
+            continue
         # all_varchar: keep everything as text; typing happens in dbt staging models
         con.execute(f"""
             create or replace table raw.{table} as

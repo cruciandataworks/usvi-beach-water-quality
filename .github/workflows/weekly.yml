@@ -1,10 +1,13 @@
 # Runs the whole pipeline every Saturday morning (DPNR usually posts on Friday),
 # then commits the refreshed dashboard data back to the repository.
+# A lighter daily run picks up NOAA's new sargassum risk map each day; on days with no
+# new DPNR sheet it finds nothing new there and only the sargassum data changes.
 name: Weekly beach data refresh
 
 on:
   schedule:
     - cron: "0 13 * * 6"   # 13:00 UTC = 9:00 AM in St. Croix (AST, UTC-4)
+    - cron: "30 15 * * *"  # daily 11:30 AM AST, after NOAA posts the day's sargassum map
   workflow_dispatch:        # adds a "Run workflow" button for manual runs
     inputs:
       test_failure:
@@ -45,24 +48,25 @@ jobs:
           key: dpnr-pdfs-${{ github.run_id }}
           restore-keys: dpnr-pdfs-
 
-      - name: Run pipeline (discover, download, extract, load, dbt build, export)
+      - name: Run pipeline (discover, download, sargassum, extract, load, dbt build, export)
         run: python run_pipeline.py
 
       - name: Commit refreshed data
         run: |
           git config user.name "cdw-bot"
           git config user.email "hello@cruciandataworks.com"
-          git add data/raw/manifest.csv data/raw/downloads.csv data/interim dashboard/data
-          git diff --cached --quiet || git commit -m "Weekly DPNR beach data refresh"
+          git add data/raw/manifest.csv data/raw/downloads.csv data/raw/sargassum_downloads.csv data/interim dashboard/data
+          git diff --cached --quiet || git commit -m "DPNR beach and NOAA sargassum data refresh"
+          git pull --rebase || true
           git push
 
-      # Publish the refreshed dashboard to cruciandataworks.com (Hostinger) over FTP.
-      # Skipped automatically until the three FTP secrets are added in
-      # GitHub: Settings > Secrets and variables > Actions.
       # Tag CSS/JS links with a content hash so browsers never pair a new page with an old script.
       - name: Version-stamp the dashboard's CSS and JS links
         run: python pipeline/stamp_assets.py
 
+      # Publish the refreshed dashboard to cruciandataworks.com (Hostinger) over FTP.
+      # Skipped automatically until the three FTP secrets are added in
+      # GitHub: Settings > Secrets and variables > Actions.
       - name: Upload dashboard to Hostinger
         if: ${{ env.FTP_SERVER != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -83,7 +87,7 @@ jobs:
           ASSIGNEE: ${{ vars.ALERT_ASSIGNEE || 'OrlandoSpears' }}
         run: |
           gh label create refresh-failure --color C8553D --description "Weekly refresh failed" 2>/dev/null || true
-          body="The weekly DPNR beach data refresh failed on $(date -u '+%Y-%m-%d %H:%M UTC').
+          body="The DPNR beach data refresh failed on $(date -u '+%Y-%m-%d %H:%M UTC').
 
           Run log: $RUN_URL
 

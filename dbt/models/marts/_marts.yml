@@ -29,3 +29,35 @@ models:
     description: Per-island, per-week counts of beaches sampled and unsafe.
   - name: mart_exceedance_streaks
     description: Runs of consecutive unsafe samples at a beach.
+  - name: fct_beach_sargassum_daily
+    description: Highest NOAA sargassum risk level near each beach, per report day.
+    tests:
+      - unique_combination:
+          arguments: {columns: [beach_id, report_date]}
+    columns:
+      - name: risk_level
+        tests:
+          - accepted_values:
+              arguments: {values: [0, 1, 2, 3], quote: false}
+  - name: mart_sargassum_island_daily
+    description: Share of each island's scored coastline at each NOAA risk level, per report day.
+    tests:
+      - unique_combination:
+          arguments: {columns: [island, report_date]}
+    columns:
+      - name: pct_warning_or_higher
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 100}
+  - name: mart_beach_sargassum
+    description: Per-beach sargassum summary - nearby points, latest level, days at medium or higher.
+    columns:
+      - name: beach_id
+        tests: [unique]
+      - name: nearby_points
+        description: Warns if a beach has no NOAA coastline point within the radius.
+        tests:
+          - not_null:
+              config: {severity: warn}
+  - name: mart_sargassum_vs_samples
+    description: Each DPNR sample since May 2025 with the highest nearby sargassum level in the week before.

@@ -21,7 +21,12 @@ PDFs are made for people to read, not for analysis. Nobody can easily answer "wh
 ```
 DPNR website ──► 1 Discover ──► 2 Download ──► 3 Extract ──► 4 Load ──► 5 Transform + test ──► 6 Export ──► Dashboard
  (WordPress)      manifest.csv    PDFs on disk    rows (text)    DuckDB      dbt models            JSON files    web page
+                                                                   ▲
+NOAA SIR maps ──────────────► 2b Sargassum ───────────────────────┘
+ (daily KMZ)                   USVI points + daily levels
 ```
+
+The second feed, NOAA's daily sargassum risk map, joins in at the load step. Step 2b explains it.
 
 This pattern is called ELT: Extract, Load, Transform. We pull the data out, load it untouched, then clean it inside the database where every rule is written in SQL and tested. Most modern data teams work this way, whether the warehouse is Snowflake, Databricks, BigQuery or DuckDB.
 
@@ -29,12 +34,14 @@ This pattern is called ELT: Extract, Load, Transform. We pull the data out, load
 
 | Measure | Value |
 |---|---|
-| PDFs collected | 123 (Oct 14, 2022 to Nov 13, 2026) |
-| Rows extracted | 5,453 |
-| Actual samples (beach actually tested) | 3,229 |
-| Unsafe results (>70) | 256 (7.9%) |
+| PDFs collected | 124 (Oct 14, 2022 to Nov 20, 2026) |
+| Rows extracted | 5,498 |
+| Actual samples (beach actually tested) | 3,261 |
+| Unsafe results (>70) | 262 (8.0%) |
 | Beaches after merging name spellings | 45 (from 56 printed spellings) |
-| dbt models + tests | 7 models, 3 seeds, 20 tests, all passing |
+| NOAA sargassum report days | 509 (Jul 1, 2025 to Nov 24, 2026) |
+| USVI coastline points NOAA scores | 2,087 |
+| dbt models + tests | 15 models, 3 seeds, 40 tests, all passing |
 
 ---
 
@@ -145,6 +152,74 @@ python pipeline/step2_download.py
 
 ---
 
+## Step 2b: Add NOAA's daily sargassum risk
+
+**File:** `pipeline/step2b_sargassum.py`
+
+**Goal:** for every day NOAA has published, the sargassum risk level at every scored stretch of USVI coastline, saved as small CSV files the warehouse can join to the beaches.
+
+**The source.** NOAA's CoastWatch Caribbean & Gulf of America node publishes a [Daily Sargassum Inundation Risk](https://cwcgom.aoml.noaa.gov/SIR/index.php) map (SIR). For each coastal pixel it looks at satellite floating-algae data from the University of South Florida within 50 to 100 km, compares it with a multi-day baseline, and assigns a level: 0 low (blue), 1 warning (yellow), 2 medium (orange) or 3 high (red). Coast with too little satellite data is painted black. NOAA is clear that it is an experimental product and not a forecast. [NOAA AOML's explainer](https://www.aoml.noaa.gov/tracking-sargassum/) describes how it is made.
+
+**Why this source and not another.** We looked at three options:
+
+- The CARICOOS sargassum biomass dataset turned out to cover San Cristóbal in Puerto Rico, not the Virgin Islands.
+- USF's [Sargassum Watch](https://optics.marine.usf.edu/projects/saws.html) bulletins are monthly and regional, too coarse for a beach map.
+- NOAA's SIR scores individual stretches of coast every day and publishes a downloadable file for each day. That is the one we used.
+
+**How the step works.**
+
+1. Read NOAA's SIR page and collect every report date listed in its date picker (570 dates, May 1, 2025 to Nov 24, 2026, when this was built).
+2. For each date not already saved, download `sargassum_risk_YYYYMMDD.kmz`. A KMZ is a zipped KML file, the format Google Earth uses. Each one covers the whole Caribbean and Gulf, 1.5 to 5 MB.
+3. Read the KML text and keep only coastline points inside simple boxes around St. Croix, St. Thomas, St. John and Water Island. The British Virgin Islands sit just northeast of St. John, so that corner is cut out. We checked the result by plotting the kept points: they trace each island's outline, plus Buck Island off St. Croix and the cays around St. Thomas.
+4. Write three files:
+   - `data/interim/sargassum_points.csv`: the 2,087 coastline points, each with an id and an island (1,004 St. Thomas, 530 St. Croix, 503 St. John, 50 Water Island).
+   - `data/interim/sargassum/YYYY-MM.csv`: one row per day per point (date, point id, level), split by month so no single file gets large.
+   - `data/raw/sargassum_downloads.csv`: the audit trail, with one row per date showing the URL, SHA-256 fingerprint, size, number of USVI points and whether NOAA had the file.
+
+**Two things we found.**
+
+- NOAA lists reports from May 1, 2025, but the map files for May and June 2025 return "not found". Only the PDF versions exist for those days. The step records those 61 days as `missing` so it doesn't keep retrying them. The usable record starts July 1, 2025: 509 days.
+- The coastline points are exactly the same every day. So we store each point's position once and keep only the id and level per day. That is the same idea as a dimension table plus a fact table.
+
+**Never fatal.** The beach results are the main product, so step 2b is marked optional in `run_pipeline.py`. If NOAA is down, the run carries on with the days already saved and picks up the gap next time.
+
+**Run it:**
+
+```bash
+python pipeline/step2b_sargassum.py
+```
+
+**What you should see:** the first run takes about 40 minutes and ends with `sargassum: 509 days saved, 2087 USVI coastline points, 1062175 new rows`. Run it again and you'll see `0 new to fetch`. Later runs fetch only the new day.
+
+**How it flows through the warehouse (step 5).**
+
+| Model | What it holds |
+|---|---|
+| `stg_sargassum_points`, `stg_sargassum_daily`, `stg_sargassum_downloads` | Typed copies. `risk_label` spells out low, warning, medium or high. |
+| `int_beach_sargassum_points` | For each beach, the NOAA points within 2 km of its map pin, on the same island. Distance uses the haversine formula, which gives straight-line distance on a sphere. |
+| `fct_beach_sargassum_daily` | One row per beach per day: the highest level among its nearby points. No row means no data. We never guess. |
+| `mart_sargassum_island_daily` | Per island per day: the share of coastline at warning or higher, medium or higher, and high, plus the most common level. |
+| `mart_beach_sargassum` | Per beach: number of nearby points, latest level, and days at medium or higher (all time and in the last 30 days). |
+| `mart_sargassum_vs_samples` | Each DPNR sample since July 2025, with the highest nearby level in the 7 days up to the sampling day. |
+
+The 2 km radius and the 7-day look-back are variables in `dbt_project.yml` (`sargassum_radius_km`, `sargassum_lookback_days`). You can change them in one place. New tests check that levels are 0 to 3, that (date, point) pairs are unique, that every daily row points to a known coastline point, and that every beach has nearby points. The last one is a warning, not a failure. Every one of the 45 beaches has at least 10 nearby points.
+
+**What the comparison shows.** Of 1,645 samples since July 1, 2025, the share above 70 was:
+
+- 8.4% when the nearby level was low (203 samples)
+- 2.9% at warning (35 samples)
+- 11.8% at medium (451 samples)
+- 7.4% at high (956 samples)
+
+There is no steady rise with sargassum level. That is an honest result worth showing, not hiding. Bacteria spikes in the USVI track rain runoff and sewage more than seaweed, and sargassum was at medium or high for most of the period anyway, so there are few low days to compare against.
+
+**Check your understanding**
+- Why store point positions once instead of on every daily row? (The same 2,087 positions would repeat 509 times.)
+- Why take the highest level near a beach, not the average? (A single red stretch next to a beach matters more to a swimmer than a calm coast 2 km away.)
+- Why is a comparison table not proof of cause? (Other things, like rain and season, move both numbers.)
+
+---
+
 ## Step 3: Extract the table rows
 
 **File:** `pipeline/step3_extract.py`
@@ -210,6 +285,8 @@ raw.beach_readings     5453 rows
 raw.pdf_manifest        123 rows
 ```
 
+After step 2b was added, three more tables load the same way: `raw.sargassum_points` (2,087 rows), `raw.sargassum_daily` (about 1.06 million rows, read from the whole `data/interim/sargassum/` folder at once using a `*.csv` wildcard) and `raw.sargassum_downloads` (one row per NOAA date). If those files don't exist yet, the step skips them instead of failing.
+
 **Explore it yourself.** DuckDB has a command-line shell, or use Python:
 
 ```bash
@@ -255,7 +332,7 @@ This query is how we found all the codes DPNR uses: `<10`, `NS`, `*`, `SI`, and 
 
 ### Tests
 
-There are 20 data tests in total. dbt's built-in tests check that ids are unique, nothing important is null, codes are from the known list, and every beach exists in the dimension. We also wrote some of our own:
+There are 40 data tests in total (20 for the beach results, 20 for the sargassum feed). dbt's built-in tests check that ids are unique, nothing important is null, codes are from the known list, and every beach exists in the dimension. We also wrote some of our own:
 
 - `assert_matches_dpnr_advisory_2026_11_13`: our six unsafe beaches for Nov 13, 2026 must exactly match DPNR's [Beach Advisory press release](https://dpnr.vi.gov/wp-content/uploads/2026/11/Beach-Advisory-11.13.26.pdf) (Coki Point, Vessup Bay, Bluebeard's, New Fort, Chenay Bay and Grapetree).
 - `assert_no_unparsed_values`: catches any new code DPNR introduces.
@@ -269,7 +346,7 @@ dbt build --profiles-dir .
 cd ..
 ```
 
-**What you should see:** `Done. PASS=30 WARN=0 ERROR=0`. The 30 is 7 models, 3 seeds and 20 tests.
+**What you should see:** `Done. PASS=58 WARN=0 ERROR=0`. The 58 is 15 models (6 views, 9 tables), 3 seeds and 40 tests. Before the sargassum feed it was 30: 7 models, 3 seeds and 20 tests.
 
 **A finding from reconciliation.** The press release says 31 beaches were analyzed. The data sheet has 32 results. The difference is Sprat Hall: its sheet shows 20 colonies (safe), but the press release left it off the safe list. The test caught a gap in the source itself. That is a strong story to tell clients about why automated checks matter.
 
@@ -308,9 +385,12 @@ python -m http.server 8000
 **File:** `run_pipeline.py`
 
 ```bash
-python run_pipeline.py            # all six steps
-python run_pipeline.py --from 3   # skip discovery and download
+python run_pipeline.py            # every step
+python run_pipeline.py --from 3   # skip discovery and the two downloads
+python run_pipeline.py --from 2b  # refresh only the sargassum days, then rebuild
 ```
+
+Steps are labeled 1, 2, 2b, 3, 4, 5, 6. Step 2b is "optional". If it fails, the run prints a note and carries on.
 
 If any step fails, including a failed dbt test, the run stops. Bad data never reaches the dashboard. This is called a quality gate.
 
@@ -323,6 +403,8 @@ If any step fails, including a failed dbt test, the run stops. Bad data never re
 Once the project is on GitHub, GitHub Actions runs `run_pipeline.py` every Saturday at 9:00 AM St. Croix time. It caches the PDFs between runs and commits the refreshed dashboard data. The `workflow_dispatch` line adds a "Run workflow" button for manual runs.
 
 The cron line `0 13 * * 6` means minute 0, hour 13 UTC, any day of the month, any month, Saturday (day 6).
+
+A second line, `30 15 * * *`, runs the same pipeline every day at 11:30 AM St. Croix time, so the sargassum section picks up NOAA's new map each day. On days with no new DPNR sheet, discovery finds nothing new. Only the sargassum files change, and only changed files are committed and uploaded. The commit step now also saves `data/raw/sargassum_downloads.csv`.
 
 The last step uploads the `dashboard/` folder to your Hostinger site over FTP, so the published page updates on its own. It stays switched off until you add three repository secrets in GitHub (Settings > Secrets and variables > Actions > New repository secret):
 
@@ -365,7 +447,7 @@ Two of the ten (Lindbergh Bay and Sapphire) did get OpenStreetMap matches, but i
 
 ## Talking about this project
 
-**One-line summary:** "I built an automated pipeline that turns the territory's weekly beach-testing PDFs into a tested data warehouse and a public map. It covers four years, 123 reports and 3,229 samples."
+**One-line summary:** "I built an automated pipeline that turns the territory's weekly beach-testing PDFs into a tested data warehouse and a public map. It covers four years, 124 reports and 3,261 samples, plus 509 days of NOAA satellite sargassum risk linked to every beach."
 
 **Skills it demonstrates:**
 - API discovery
@@ -373,10 +455,11 @@ Two of the ten (Lindbergh Bay and Sapphire) did get OpenStreetMap matches, but i
 - Idempotent ingestion
 - ELT with dbt
 - Data quality tests and reconciliation against an official source
+- Joining a second, spatial data source (satellite KML) to point locations
 - Scheduling
 - Communicating results visually
 
-**The story clients remember:** the table extractor failed because of a font bug. We diagnosed it from character coordinates and rebuilt the parser. Our reconciliation test then caught that the official press release had left out a beach.
+**The story clients remember:** the table extractor failed because of a font bug. We diagnosed it from character coordinates and rebuilt the parser. Our reconciliation test then caught that the official press release had left out a beach. A second story: when we joined satellite sargassum risk to the bacteria results, there was no clear link, and the dashboard says so plainly instead of implying one.
 
 **Honest limits:**
 - Enterococci counts swing a lot from week to week.
